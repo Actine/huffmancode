@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="uk">
+    <head>
+        <title>Кодування :: Лабораторна робота №№4&ndash;5 :: Данилюк Павло</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <link rel="stylesheet" href="bootstrap.css" />
+        <script src="encoders.js"></script>
+        <script src="printresults.js"></script>
+        
+    </head>
+    <body>
+        <div class="navbar">
+            <div class="navbar-inner">
+                <div class="container">
+                    <span class="brand">
+                        Лабораторна робота №№4&ndash;5. Методи кодування.
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="container">
+            <section id="input">
+                <div class="row">
+                    <div class="span12">
+                        <h2>Вхідні дані</h2>
+                        <form action="#" method="post" class="form-horizontal" id="inputForm">
+                            <h3>Вставте текст</h3>
+                            <textarea id="inputData" name="input" class="span12" style="height: 250px;"></textarea>      
+                            <div class="row">
+                                <div class="span4">
+                                    <h3>Виберіть дію</h3>
+                                    <label><input id="ac0" type="radio" name="action" value="0" checked="" /> Кодування</label>
+                                    <label><input id="ac1" type="radio" name="action" value="1" /> Декодування</label>
+                                </div>
+                                <div class="span4">
+                                    <h3>Виберіть алгоритм</h3>
+                                    <label><input id="ra0" type="radio" name="algorithm" value="0" checked="" /> Алгоритм Хафмана</label>
+                                    <label><input id="ra1" type="radio" name="algorithm" value="1" /> Арифметичне кодування</label>
+                                    <label><input id="ra2" type="radio" name="algorithm" value="2" /> Алгоритм Лемпеля-Зіва (LZ78)</label>
+                                </div>                                
+                                <div class="span4" id="addParams" style="display: none;">
+                                    <h3>Додаткові параметри</h3>
+                                    <label><input class="span1" id="chunksize" type="number" name="chunksize" max="64" min="1" value="16" /> Довжина блоку, символів</label>
+                                    
+                                </div>
+                            </div>
+                            <div id="decodeParams" style="display: none;">
+                                <h3>Кодова таблиця (словник)</h3>
+                                <textarea id="codetable" class="span12" name="codetable" style="height: 80px;"></textarea>  
+                            </div>
+                            <div style="margin-top: 10px;">
+                                <button class="btn btn-primary" onclick="try {code();} catch (e) {outputError('Критична помилка: '+e.message);} window.event.preventDefault();" >Перетворити</button>
+                                <input class="btn" id="resetBtn" type="reset" onclick="document.getElementById('decodeParams').style.display = 'none'; document.getElementById('addParams').style.display = 'none'" value="Скинути" />
+                                <button class="btn" onclick="copyFields(); window.event.preventDefault();" >Заповнити з виводу</button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                </div>
+            </section>
+            
+            <section id="result" style="display: none;">
+                
+            </section>
+            
+        </div>
+        
+        
+        <script>
+            
+            function copyFields() {
+                try {
+                    document.getElementById('inputData').value = document.getElementById('outputData').value;
+                } catch (e) {};
+                
+                try {
+                    document.getElementById('codetable').value = document.getElementById('outputCT').value;                    
+                } catch (e) {};
+            }
+                        
+            function code() {
+                input = document.getElementById('inputData').value;
+                encode = document.getElementById('ac0').checked; // true - code, false - decode;
+                alg_huffman = document.getElementById('ra0').checked; // true - huffman, false - arithm or lz;
+                alg_lz78 = document.getElementById('ra2').checked; // true - lz78, false - huffman or arithm   
+                
+                chunksize = parseInt(document.getElementById('chunksize').value);
+                codetable = document.getElementById('codetable').value;
+                
+                if (encode) {
+                    if (alg_huffman) {
+                        results = huffmanEncode(input);
+                        if (results[0])
+                            outputHuffmanEncode(results[1]);
+                    } else if (alg_lz78) {
+                        results = lz78Encode(input);
+                        if (results[0])
+                            outputLz78Encode(results[1]);
+                    } else {
+                        results = arithmeticEncode(input, chunksize);
+                        if (results[0])
+                            outputArithmetic(results[1]);
+                    }
+                } else {
+                    if (alg_huffman) {
+                        try {
+                            results = huffmanDecode(input, JSON.parse(codetable));
+                            if (results[0])
+                                outputHuffmanDecode(results[1]);
+                        } catch (e) {
+                            results = [false, "Помилка кодової таблиці json: "+e.message];                            
+                        }                        
+                    } else if (alg_lz78) {
+                        try {
+                            results = lz78Decode(JSON.parse(input));
+                            if (results[0])
+                                outputLz78Decode(results[1]);
+                        } catch (e) {
+                            results = [false, "Помилка кодової таблиці json: "+e.message];                          
+                        }
+                    } else {                        
+                        try {
+                            results = arithmeticDecode(input, JSON.parse(codetable), chunksize);
+                            if (results[0])
+                                outputArithmeticDecode(results[1]);
+                        } catch (e) {
+                            results = [false, "Помилка кодової таблиці json: "+e.message];                          
+                        }
+                    }
+                }
+                
+                if (!results[0])
+                    outputError(results[1]);
+                
+                //window.location = "#result";
+            }
+            
+            document.getElementById('inputForm').addEventListener('change', function(){
+                document.getElementById('decodeParams').style.display = (document.getElementById('ac1').checked? (document.getElementById('ra2').checked? "none" : "block") : "none");
+                document.getElementById('addParams').style.display = (document.getElementById('ra1').checked? "block" : "none");
+            });
+            
+            document.getElementById('resetBtn').addEventListener("click", function(){
+                document.getElementById('result').style.display = "none";
+                document.getElementById('result').innerHTML = "";
+            });
+            
+                       
+        </script>
+        
+        
+    </body>
+</html>
+<!-- Реалізація: Данилюк "Actine" Павло. 3к, 6гр, фізичний факультет УжНУ. 3 кві 2012 -->
